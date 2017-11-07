@@ -2,12 +2,10 @@
 """
 
 import numpy as np
-import pandas as pd
-import os
 import tensorflow as tf
-import network as nw
+import symflow
 
-def fc_nn(network):
+def fc_nn(network, x):
     """Builds a fully connected neural network
 
     Input parameters:
@@ -34,11 +32,6 @@ def fc_nn(network):
     b = []
     hidden = []
 
-    x = tf.placeholder(tf.float32,[None,features])
-    y_ = tf.placeholder(tf.float32,[None,targets])
-
-
-
     W.append(tf.get_variable(initializer = tf.truncated_normal_initializer(),shape = [features,layers[0]],name='W1'))
     b.append(tf.get_variable(initializer = tf.constant_initializer(0),shape = [layers[0]],name='b1'))
     hidden.append(activations[0](tf.matmul(x,W[0])+b[0]))
@@ -54,7 +47,7 @@ def fc_nn(network):
 
     logits = tf.matmul(hidden[n-1],W[n])+b[n]
 
-    return logits,x,y_
+    return logits
 
 
 def fc_nn_g(network, i, mean = 0, std = 1):
