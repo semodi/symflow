@@ -1,2 +1,2 @@
 from . import nodes
-from . import graph
+from .graph import Graph

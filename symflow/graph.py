@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from .nodes import * 
 import pandas as pd
 from . import ml_util as ml
 import pickle
