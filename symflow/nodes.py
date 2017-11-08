@@ -15,29 +15,35 @@ class Node():
         self.receives_from = []
 
     def __rshift__(self, other):
+        """ Send to other """
         self.update_sends_to(other)
         return other
 
     def __lshift__(self, other):
+        """ Other sends_to self"""
         other.update_sends_to(self)
         return other
 
     def update_sends_to(self, to):
-
-        contained = False
-        for s in self.sends_to:
-            if s == to:
-                contained = True
-        if not contained:
+        """ update the sends_to attribute making sure
+        no redundancies are added
+        """
+        if not (to in self.sends_to):
             self.sends_to.append(to)
 
     def sends_to_names(self):
+        """ Return a list of names of all the nodes self sends data to
+        """
         names = []
         for to in self.sends_to:
             names.append(to.name)
         return names
 
     def findall_forward(self):
+        """ Recursive function used by findall_nodes (graph.py) to find
+        all nodes in graph. Determines all the nodes self is sending data
+        to"""
+
         nodes = [self]
         for n in self.sends_to:
             if isinstance(self, Subnetnode) and isinstance(n,Datanode):
@@ -50,10 +56,12 @@ class Datanode(Node):
     seed = 42
     index = 0
 
-    def __init__(self, X = None, y = None, scaler = None):
+    def __init__(self, name = 'Datanode', X = None, y = None, scaler = None):
 
         self.scaler = scaler
-        self.name = 'Datanode'
+        self.name = name
+        if self.name == 'Datanode':
+            print('Warning, name not set. Using default: "Datanode" ')
 
         self.X_train = None
         self.X_test = None
@@ -280,6 +288,12 @@ class Subnetnode(Node):
         return self.logits, None
 
     def connect_backwards(self):
+        """ Builds the neural net tensors recursively by starting at the
+        target Datanode and working its way back through all nodes.
+        This has to be done recursively as the input of Subnetnode (x in
+        get_tensors(x)) is determined by the output of all the Nodes it is
+        connected to
+        """
 
         input_tensors = []
 

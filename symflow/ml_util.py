@@ -11,12 +11,11 @@ def fc_nn(network, x):
     Input parameters:
     -----------------
         network: subnet; subnet object
+        x : tf.placeholder for input layer 
 
     Returns:
     --------
         logits: tensorflow tensor; output layer of neural network
-        x: tensorflow placeholder; input layer
-        y:  tensorflow placeholder; placeholder for target values
         """
 
 
