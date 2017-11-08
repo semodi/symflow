@@ -37,7 +37,7 @@ class Graph():
         nodes = dict((k,1) for k in nodes)
         self.nodes = list(nodes.keys())
         self.connect_backwards()
-        
+
     def set_nodes(self, nodes):
         if isinstance(nodes,list):
             self.nodes = nodes

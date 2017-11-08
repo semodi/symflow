@@ -51,12 +51,13 @@ class Node():
             nodes += n.findall_forward()
         return nodes
 
+
 class Datanode(Node):
 
     seed = 42
     index = 0
 
-    def __init__(self, name = 'Datanode', X = None, y = None, scaler = None):
+    def __init__(self, X = None, y = None, scaler = None, name = 'Datanode'):
 
         self.scaler = scaler
         self.name = name
