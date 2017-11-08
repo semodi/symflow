@@ -79,6 +79,17 @@ class Graph():
             for n2 in n1.sends_to:
                 n2.receives_from.append(n1)
 
+    def distinct_namescopes(self):
+        """ Find all subnetnodes with distinct namescope
+        """
+
+        namescopes = []
+
+        for n in self.nodes:
+            if isinstance(n, Subnetnode) and n.name not in namescopes:
+                namescopes.append(n.name)
+        return namescopes
+
 # ================== ML functions ======================
 
     def get_prediction(self, datanode, which = 'train'):
@@ -189,14 +200,12 @@ class Graph():
         elif which == 'test':
             return test_feed_dict, None
 
-
     def train(self,
               step_size=0.01,
               max_steps=50001,
               b_=0,
               verbose=True,
-              optimizer=None,
-              adaptive_rate=False):
+              optimizer=None):
 
         """ Train the master neural network
 
@@ -207,8 +216,6 @@ class Graph():
         b: float; regularization parameter
         verbose: boolean; print cost for intermediate training epochs
         optimizer: {tf.nn.GradientDescentOptimizer,tf.nn.AdamOptimizer, ...}
-        adaptive_rate: boolean; wether to adjust step_size if cost increases
-                        not recommended for AdamOptimizer
 
         Returns:
         --------
@@ -219,6 +226,9 @@ class Graph():
         self.model_loaded = True
         if self.graph is None:
             self.graph = tf.Graph()
+            build_graph = True
+        else:
+            build_graph = False
 
         with self.graph.as_default():
 
@@ -238,27 +248,34 @@ class Graph():
             for c in cost_list:
                 cost += c
 
-            # # L2-loss
-            # loss = 0
-            # with tf.variable_scope("", reuse=True):
-            #     for net in self.subnets:
-            #         if isinstance(net,list):
-            #             for net in net:
-            #                 for l, layer in enumerate(net.layers):
-            #                     name = net.species
-            #                     loss += tf.nn.l2_loss(tf.get_variable("{}/W{}".format(name, l+1))) * \
-            #                             b[name]/layer
-            #         else:
-            #             for l, layer in enumerate(net.layers):
-            #                 name = net.species
-            #                 loss += tf.nn.l2_loss(tf.get_variable("{}/W{}".format(name, l+1))) * \
-            #                     b[name]/layer
-            #
-            # cost += loss          adaptive_rate=False
-            #
-            # for i, s in enumerate(species):
-            #     train_feed_dict['{}/b:0'.format(s)] = b_[i]
-            #     valid_feed_dict['{}/b:0'.format(s)] = 0
+            # Create regularization parameters for every distinct namescope
+            b = {}
+            if build_graph:
+                for ns in self.distinct_namescopes():
+                    b[ns] = tf.placeholder(tf.float32, name = '{}/b'.format(ns))
+            else:
+                for ns in self.distinct_namescopes():
+                    b[ns] = self.graph.get_tensor_by_name('{}/b:0'.format(ns))
+
+            # L2-loss
+            loss = 0
+            with tf.variable_scope("", reuse = True):
+                for n in self.nodes:
+                    if isinstance(n, Datanode): continue
+
+                    for l, layer in enumerate(n.layers):
+                        name = n.name
+                        loss += tf.nn.l2_loss(tf.get_variable("{}/W{}".format(name, l+1))) * \
+                            b[name]/layer
+
+            cost += loss
+
+            if b_ == 0:
+                b_ = [0] * len(self.distinct_namescopes())
+
+            for i, ns in enumerate(self.distinct_namescopes()):
+                train_feed_dict['{}/b:0'.format(ns)] = b_[i]
+                valid_feed_dict['{}/b:0'.format(ns)] = 0
 
 
             if self.optimizer == None:
@@ -300,19 +317,15 @@ class Graph():
 
                 if _%int(max_steps/10) == 0 and verbose:
                     print('Step: ' + str(_))
-                    print('Training set cost:')
+                    print('Training set loss:')
                     if len(cost_list) > 1:
-                        for i, c in enumerate(cost_list):
-                            print('{}: {}'.format(i,sess.run(tf.sqrt(c),
-                                feed_dict=train_feed_dict)))
-                    print('Total: {}'.format(sess.run(tf.sqrt(cost),
-                        feed_dict=train_feed_dict)))
-                    print('Validation set cost:')
+                        for t, c in zip(self.find_targetnodes(), cost_list):
+                            print('{}: {}'.format(t.name,sess.run(tf.sqrt(c),feed_dict=train_feed_dict)))
+                    print('Total: {}'.format(sess.run(tf.sqrt(cost-loss),feed_dict=train_feed_dict)))
+                    print('Validation set loss:')
                     if len(cost_list) > 1:
-                        for i, c in enumerate(cost_list):
-                            print('{}: {}'.format(i,sess.run(tf.sqrt(c),
-                                feed_dict=valid_feed_dict)))
-                    print('Total: {}'.format(sess.run(tf.sqrt(cost),
-                        feed_dict=valid_feed_dict)))
+                        for t, c in zip(self.find_targetnodes(), cost_list):
+                            print('{}: {}'.format(t.name, sess.run(tf.sqrt(c),feed_dict=valid_feed_dict)))
+                    print('Total: {}'.format(sess.run(tf.sqrt(cost),feed_dict=valid_feed_dict)))
                     print('--------------------')
-                    # print('L2-loss: {}'.format(sess.run(loss,feed_dict=train_feed_dict)))
+                    print('L2-loss: {}'.format(sess.run(loss,feed_dict=train_feed_dict)))
