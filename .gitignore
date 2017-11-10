@@ -1,7 +1,8 @@
 *.xyz
 */*.xyz
 ./learn/*/
-test_symflow.ipynb
+*.ipynb
+./jupyter/
 
 /learn/log/
 

@@ -10,6 +10,9 @@ import pickle
 class Graph():
 
     def __init__(self, nodes):
+        if isinstance(nodes, Datanode):
+            nodes = [nodes]
+
         self.nodes = nodes
         self.rand_state = np.random.get_state()
         self.graph = None
@@ -92,6 +95,13 @@ class Graph():
 
 # ================== ML functions ======================
 
+    def reset(self):
+        self.sess = None
+        self.graph = None
+        self.initialized = False
+        self.optimizer = None
+        self.checkpoint_path = None
+        
     def get_prediction(self, datanode, which = 'train'):
         """ Uses trained model on training or test sets
 
@@ -110,7 +120,7 @@ class Graph():
 
 
         which_node = -1
-        for i, n in enumerate(self.nodes):
+        for i, n in enumerate(self.find_targetnodes())  :
             if isinstance(datanode, Datanode):
                 if datanode == n:
                     which_node = i
