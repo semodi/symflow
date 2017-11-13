@@ -1,4 +1,4 @@
-import matplotlib.pylab as plt
+import matplotlib.pyplot     as plt
 import numpy as np
 
 def plot_corr(predicted,
@@ -41,15 +41,13 @@ def plot_corr(predicted,
     max_error_t = np.max(np.abs(predicted_test - expected_test))
 
     plt.plot(expected, predicted, ls ='', marker = '.',
-         label = 'Training set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev '+ \
-         '\nmax. error = {:.1f}meV'.format(rmse*1e3,mae*1e3, max_error*1e3))
+         label = 'Training set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. error = {:.1f}meV'.format(rmse*1e3,mae*1e3, max_error*1e3))
 
     plt.plot(expected_test, predicted_test, ls ='', marker = '.',
-         label = 'Test set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. '+ \
-         'error = {:.1f}meV'.format(rmse_t*1e3,mae_t*1e3, max_error_t*1e3))
+         label = 'Test set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. error = {:.1f}meV'.format(rmse_t*1e3,mae_t*1e3, max_error_t*1e3))
 
     plt.xlabel("Expected " + label)
-    pltself.ylabel("Predicted " + label)
+    plt.ylabel("Predicted " + label)
     min_ = np.min([predicted,expected]) - 0.01
     max_ = np.max([predicted,expected]) + 0.01
     plt.plot([min_,max_],[min_,max_], color = 'black', lw = 1)
