@@ -1,5 +1,6 @@
 import matplotlib.pyplot     as plt
 import numpy as np
+from scipy.stats import pearsonr
 
 def plot_corr(predicted,
               predicted_test,
@@ -35,16 +36,20 @@ def plot_corr(predicted,
     rmse = np.sqrt(np.mean((predicted-expected)**2))
     mae = np.mean(np.abs(predicted-expected))
     max_error = np.max(np.abs(predicted - expected))
+    R = pearsonr(predicted, expected)[0][0]
 
     rmse_t = np.sqrt(np.mean((predicted_test-expected_test)**2))
     mae_t = np.mean(np.abs(predicted_test-expected_test))
     max_error_t = np.max(np.abs(predicted_test - expected_test))
+    R_t = pearsonr(predicted_test, expected_test)[0][0]
 
     plt.plot(expected, predicted, ls ='', marker = '.',
-         label = 'Training set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. error = {:.1f}meV'.format(rmse*1e3,mae*1e3, max_error*1e3))
+         label = 'Training set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. \
+error = {:.1f}meV \nR = {:.3f}'.format(rmse*1e3,mae*1e3, max_error*1e3, R))
 
     plt.plot(expected_test, predicted_test, ls ='', marker = '.',
-         label = 'Test set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. error = {:.1f}meV'.format(rmse_t*1e3,mae_t*1e3, max_error_t*1e3))
+         label = 'Test set \nRMSE = {:.1f}meV \nMAE = {:.1f}mev \nmax. error = \
+{:.1f}meV \nR = {:.3f}'.format(rmse_t*1e3,mae_t*1e3, max_error_t*1e3, R_t))
 
     plt.xlabel("Expected " + label)
     plt.ylabel("Predicted " + label)

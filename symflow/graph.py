@@ -6,6 +6,7 @@ from .nodes import *
 import pandas as pd
 from . import ml_util as ml
 import pickle
+import timeit
 
 class Graph():
 
@@ -101,7 +102,7 @@ class Graph():
         self.initialized = False
         self.optimizer = None
         self.checkpoint_path = None
-        
+
     def get_prediction(self, datanode, which = 'train'):
         """ Uses trained model on training or test sets
 
@@ -229,7 +230,7 @@ class Graph():
 
         Returns:
         --------
-        None
+        statistics: dict; training statistics
         """
 
 
@@ -311,6 +312,12 @@ class Graph():
 
             old_cost = 1e8
 
+            statistics = {}
+            statistics['time_trained'] = timeit.timeit()
+            statistics['total_cost'] = []
+            statistics['loss'] = []
+            statistics['partial_cost'] = {}
+
             for _ in range(0,max_steps):
 
                 sess.run(train_step,feed_dict=train_feed_dict)
@@ -325,17 +332,37 @@ class Graph():
                 #         train_step = tf.train.GradientDescentOptimizer(step_size).minimize(cost)
                 #     old_cost = new_cost
 
+                # Log training process
+                if _%int(max_steps/100) == 0 and log_training:
+                    statistics['total_cost'].append(sess.run(tf.sqrt(cost),
+                        feed_dict=valid_feed_dict))
+                    statistics['loss'].append(sess.run(loss,
+                        feed_dict=train_feed_dict))
+                    if len(cost_list) > 1:
+                        for t, c in zip(self.find_targetnodes(), cost_list):
+                            statistics['partial_cost'][t.name] = sess.run(tf.sqrt(c),
+                                feed_dict=valid_feed_dict)))
+
+                # Print training process
                 if _%int(max_steps/10) == 0 and verbose:
                     print('Step: ' + str(_))
                     print('Training set loss:')
                     if len(cost_list) > 1:
                         for t, c in zip(self.find_targetnodes(), cost_list):
-                            print('{}: {}'.format(t.name,sess.run(tf.sqrt(c),feed_dict=train_feed_dict)))
-                    print('Total: {}'.format(sess.run(tf.sqrt(cost-loss),feed_dict=train_feed_dict)))
+                            print('{}: {}'.format(t.name,sess.run(tf.sqrt(c),
+                                feed_dict=train_feed_dict)))
+                    print('Total: {}'.format(sess.run(tf.sqrt(cost-loss),
+                        feed_dict=train_feed_dict)))
                     print('Validation set loss:')
                     if len(cost_list) > 1:
                         for t, c in zip(self.find_targetnodes(), cost_list):
-                            print('{}: {}'.format(t.name, sess.run(tf.sqrt(c),feed_dict=valid_feed_dict)))
-                    print('Total: {}'.format(sess.run(tf.sqrt(cost),feed_dict=valid_feed_dict)))
+                            print('{}: {}'.format(t.name, sess.run(tf.sqrt(c),
+                                feed_dict=valid_feed_dict)))
+                    print('Total: {}'.format(sess.run(tf.sqrt(cost),
+                        feed_dict=valid_feed_dict)))
                     print('--------------------')
-                    print('L2-loss: {}'.format(sess.run(loss,feed_dict=train_feed_dict)))
+                    print('L2-loss: {}'.format(sess.run(loss,
+                        feed_dict=train_feed_dict)))
+
+            statistics['time_trained'] = timeit.timeit() - statistics['time_trained']
+            return statistics
