@@ -5,8 +5,8 @@ from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 from . import ml_util as ml
 import pickle
-
-
+# Set for additional output
+debug = False
 
 class Node():
 
@@ -57,12 +57,13 @@ class Datanode(Node):
     seed = 42
     index = 0
 
-    def __init__(self, X = None, y = None, scaler = None, name = 'Datanode'):
+    def __init__(self, X=None, y=None, scaler=None, name='Datanode',
+                 test_size=0.2):
 
         self.scaler = scaler
         self.name = name
         if self.name == 'Datanode':
-            print('Warning, name not set. Using default: "Datanode" ')
+            if debug: print('Warning, name not set. Using default: "Datanode" ')
 
         self.X_train = None
         self.X_test = None
@@ -72,6 +73,7 @@ class Datanode(Node):
         self.y_name = None
         self.x = None
         self.y_ = None
+        self.test_size = test_size
         super().__init__()
 
         # Keep track of Datanode instances and index them
@@ -84,7 +86,7 @@ class Datanode(Node):
             self.add_dataset(X)
 
 
-    def add_dataset(self, X, y = 0, test_size = 0.2, scale = True):
+    def add_dataset(self, X, y = 0, test_size = -1, scale = True):
 
         """ Adds dataset to Datanode. First added set determines
         species that node is associated with
@@ -108,7 +110,7 @@ class Datanode(Node):
         -------
         None
         """
-
+        if test_size == -1: test_size = self.test_size
         # If dataset has no targets
         if not isinstance(y, np.ndarray):
             y = np.zeros([X.shape[0],1])
@@ -128,7 +130,7 @@ class Datanode(Node):
             if self.scaler == None:
                 scaler = MinMaxScaler(feature_range = (-1,1), copy = False)
                 scaler.fit(X_train)
-                print('No scaler provided, using MinMaxScaler fitted to ' +
+                if debug: print('No scaler provided, using MinMaxScaler fitted to ' +
                 'training set')
                 self.scaler = scaler
             else:
@@ -138,7 +140,7 @@ class Datanode(Node):
             X_test = scaler.transform(X_test)
 
         if not isinstance(self.X_train, np.ndarray):
-            print('No dataset contained yet, initializing node with this dataset.')
+            if debug: print('No dataset contained yet, initializing node with this dataset.')
             self.features = X_train.shape[1]
             self.X_train = np.zeros([0, self.features])
             self.X_test = np.zeros([0, self.features])
@@ -241,11 +243,14 @@ class Datanode(Node):
     def get_n_output(self):
         return self.X_train.shape[1]
 
+    def set_prefactors(self):
+        pass
+
 class Subnetnode(Node):
 
     seed = 42
 
-    def __init__(self, name, targets):
+    def __init__(self, name, targets, prefactor = None):
         self.name = name
         self.constructor = ml.fc_nn
         self.logits_name = None
@@ -254,7 +259,18 @@ class Subnetnode(Node):
         self.activations = [tf.nn.sigmoid] * 3
         self.features = 0
         self.logits = None
+
+        if prefactor == None:
+            prefactor = [1]*self.targets
+        self.prefactor = prefactor
+
+        self.prefactor_tensor = None
         super().__init__()
+
+    def set_prefactors(self):
+        if self.prefactor_tensor == None:
+            self.prefactor_tensor = tf.constant(self.prefactor,dtype=tf.float32,
+                shape=[1,len(self.prefactor)])
 
     def get_n_output(self):
         return self.targets
@@ -279,12 +295,12 @@ class Subnetnode(Node):
                 try:
                     logits = self.constructor(self, x)
                 except ValueError:
-                    print('Sharing variables')
+                    if debug : print('Sharing variables')
                     scope.reuse_variables()
                     logits = self.constructor(self, x)
 
             self.logits_name = logits.name
-            self.logits = logits
+            self.logits = tf.tensordot(logits,self.prefactor_tensor, axes = [[1],[0]])
 
         return self.logits, None
 
@@ -302,7 +318,7 @@ class Subnetnode(Node):
         n_features = 0
 
         for rf in self.receives_from:
-            print('Connecting {} to {}'.format(self.name, rf.name))
+            if debug: print('Connecting {} to {}'.format(self.name, rf.name))
             input_tensors.append(rf.get_tensors(rf.connect_backwards())[0])
             n_features += rf.get_n_output()
 

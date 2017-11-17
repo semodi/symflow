@@ -6,7 +6,7 @@ from .nodes import *
 import pandas as pd
 from . import ml_util as ml
 import pickle
-import timeit
+from time import time
 
 class Graph():
 
@@ -216,7 +216,8 @@ class Graph():
               max_steps=50001,
               b_=0,
               verbose=True,
-              optimizer=None):
+              optimizer=None,
+              log_training = False):
 
         """ Train the master neural network
 
@@ -249,11 +250,15 @@ class Graph():
             else:
                 sess = self.sess
 
+            for n in self.nodes:
+                n.set_prefactors()
 
             # Build all the required tensors
             logits_list = self.build_network()
             cost_list = self.get_cost(logits_list)
             train_feed_dict, valid_feed_dict = self.get_feed('train')
+
+
 
             cost = 0
             for c in cost_list:
@@ -313,10 +318,12 @@ class Graph():
             old_cost = 1e8
 
             statistics = {}
-            statistics['time_trained'] = timeit.timeit()
+            statistics['time_trained'] = time()
             statistics['total_cost'] = []
             statistics['loss'] = []
             statistics['partial_cost'] = {}
+            for t in self.find_targetnodes():
+                statistics['partial_cost'][t.name] = []
 
             for _ in range(0,max_steps):
 
@@ -337,11 +344,11 @@ class Graph():
                     statistics['total_cost'].append(sess.run(tf.sqrt(cost),
                         feed_dict=valid_feed_dict))
                     statistics['loss'].append(sess.run(loss,
-                        feed_dict=train_feed_dict))
+                        feed_dict=valid_feed_dict))
                     if len(cost_list) > 1:
                         for t, c in zip(self.find_targetnodes(), cost_list):
-                            statistics['partial_cost'][t.name] = sess.run(tf.sqrt(c),
-                                feed_dict=valid_feed_dict)))
+                            statistics['partial_cost'][t.name].append(sess.run(tf.sqrt(c),
+                                feed_dict=valid_feed_dict))
 
                 # Print training process
                 if _%int(max_steps/10) == 0 and verbose:
@@ -364,5 +371,15 @@ class Graph():
                     print('L2-loss: {}'.format(sess.run(loss,
                         feed_dict=train_feed_dict)))
 
-            statistics['time_trained'] = timeit.timeit() - statistics['time_trained']
+            # Final log entry
+
+            statistics['total_cost'].append(sess.run(tf.sqrt(cost),
+                feed_dict=valid_feed_dict))
+            statistics['loss'].append(sess.run(loss,
+                feed_dict=valid_feed_dict))
+            if len(cost_list) > 1:
+                for t, c in zip(self.find_targetnodes(), cost_list):
+                    statistics['partial_cost'][t.name].append(sess.run(tf.sqrt(c),
+                        feed_dict=valid_feed_dict))
+            statistics['time_trained'] = time() - statistics['time_trained']
             return statistics

@@ -11,7 +11,7 @@ def fc_nn(network, x):
     Input parameters:
     -----------------
         network: subnet; subnet object
-        x : tf.placeholder for input layer 
+        x : tf.placeholder for input layer
 
     Returns:
     --------
@@ -33,15 +33,15 @@ def fc_nn(network, x):
 
     W.append(tf.get_variable(initializer = tf.truncated_normal_initializer(),shape = [features,layers[0]],name='W1'))
     b.append(tf.get_variable(initializer = tf.constant_initializer(0),shape = [layers[0]],name='b1'))
-    hidden.append(activations[0](tf.matmul(x,W[0])+b[0]))
+    hidden.append(activations[0](tf.matmul(x,W[0])+b[0])/features*10)
 
     for l in range(1,n):
         W.append(tf.get_variable(initializer = tf.truncated_normal_initializer(),shape = [layers[l-1],layers[l]],name='W' + str(l+1)))
         b.append(tf.get_variable(initializer = tf.constant_initializer(0),shape = [layers[l]],name='b' + str(l+1)))
-        hidden.append(activations[l](tf.matmul(hidden[l-1],W[l])+b[l]))
+        hidden.append(activations[l](tf.matmul(hidden[l-1],W[l])+b[l])/layers[l]*10)
 
-    W.append(tf.get_variable(initializer = tf.truncated_normal_initializer, shape= [layers[n-1],targets],name='W' + str(n+1)))
-    b.append(tf.get_variable(initializer = tf.constant_initializer(0), shape = [targets],name='b' + str(n+1)))
+    W.append(tf.get_variable(initializer = tf.truncated_normal_initializer(), shape= [layers[n-1],targets],name='W' + str(n+1)))
+    b.append(tf.get_variable(initializer = tf.constant_initializer(), shape = [targets],name='b' + str(n+1)))
 
 
     logits = tf.matmul(hidden[n-1],W[n])+b[n]
