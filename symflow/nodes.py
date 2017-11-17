@@ -8,11 +8,15 @@ import pickle
 # Set for additional output
 debug = False
 
-class Node():
+class _Node():
+    """ Parent class, should not be instantiated
+    """
 
     def __init__(self):
         self.sends_to = []
         self.receives_from = []
+        self.tensor_name = None
+        self.name = 'default'
 
     def __rshift__(self, other):
         """ Send to other """
@@ -46,13 +50,79 @@ class Node():
 
         nodes = [self]
         for n in self.sends_to:
-            if isinstance(self, Subnetnode) and isinstance(n,Datanode):
+            if isinstance(n,Datanode):
                 continue
             nodes += n.findall_forward()
         return nodes
 
+    def op(self, x):
+        """ Whatever operation this node should perform. Has to return
+        a tensorflow tensor
 
-class Datanode(Node):
+        Parameters
+        ---------
+        x : Input tensor
+
+        Returns
+        --------
+        tensorflow tensor
+
+        """
+        raise NotImplementedError("op not implemented for this child \
+            class")
+
+    def get_tensors(self, x):
+        """ Builds the subnetwork by defining logits
+
+        Parameters:
+        -----------
+        x: tf.placeholder for input data
+
+        Returns:
+        ---------
+        tensor, None: tf.tensor for output data, the None is needed so that
+        the output signature is the same as for get_tensors in Datanode
+
+        """
+        if self.tensor_name == None:
+            tensor = self.op(x)
+            self.tensor_name = tensor.name
+            self.tensor = tensor
+
+        return self.tensor, None
+
+    def get_n_output(self):
+        raise NotImplementedError("get_n_output not implemented for this child \
+            class")
+
+    def connect_backwards(self):
+        """ Builds the neural net tensors recursively by starting at the nodes
+        connected to the target Datanode and working its way back through all nodes.
+        This has to be done recursively as the input of Subnetnode (x in
+        get_tensors(x)) is determined by the output of all the Nodes it is
+        connected to
+        """
+
+        input_tensors = []
+
+        #Automatically determine size of input tensor for this subnet
+        n_features = 0
+
+        for rf in self.receives_from:
+            if debug: print('Connecting {} to {}'.format(self.name, rf.name))
+            input_tensors.append(rf.get_tensors(rf.connect_backwards())[0])
+            n_features += rf.get_n_output()
+
+        self.features = n_features
+        if len(input_tensors) > 1:
+            return tf.concat(input_tensors, axis = 1)
+        else:
+            return input_tensors[0]
+
+    def set_prefactors(self):
+        pass
+
+class Datanode(_Node):
 
     seed = 42
     index = 0
@@ -61,9 +131,8 @@ class Datanode(Node):
                  test_size=0.2):
 
         self.scaler = scaler
-        self.name = name
-        if self.name == 'Datanode':
-            if debug: print('Warning, name not set. Using default: "Datanode" ')
+
+
 
         self.X_train = None
         self.X_test = None
@@ -75,6 +144,10 @@ class Datanode(Node):
         self.y_ = None
         self.test_size = test_size
         super().__init__()
+
+        self.name = name
+        if self.name == 'Datanode':
+            if debug: print('Warning, name not set. Using default: "Datanode" ')
 
         # Keep track of Datanode instances and index them
         self.index = Datanode.index
@@ -246,12 +319,12 @@ class Datanode(Node):
     def set_prefactors(self):
         pass
 
-class Subnetnode(Node):
+class Subnetnode(_Node):
 
     seed = 42
 
     def __init__(self, name, targets, prefactor = None):
-        self.name = name
+
         self.constructor = ml.fc_nn
         self.logits_name = None
         self.layers = [32] * 3
@@ -261,19 +334,22 @@ class Subnetnode(Node):
         self.logits = None
 
         if prefactor == None:
-            prefactor = [1]*self.targets
+            # prefactor = [1]*self.targets
+            prefactor = 1
+
         self.prefactor = prefactor
 
         self.prefactor_tensor = None
         super().__init__()
+        self.name = name
 
-    def set_prefactors(self):
-        if self.prefactor_tensor == None:
-            self.prefactor_tensor = tf.constant(self.prefactor,dtype=tf.float32,
-                shape=[1,len(self.prefactor)])
+    def set_prefactors(self): #TODO
+        pass
+        # if self.prefactor_tensor == None:
+        #     self.prefactor_tensor = tf.constant(self.prefactor,dtype=tf.float32,
+        #         shape=[1,len(self.prefactor)])
 
-    def get_n_output(self):
-        return self.targets
+
 
     def get_tensors(self, x):
         """ Builds the subnetwork by defining logits
@@ -281,12 +357,11 @@ class Subnetnode(Node):
         Parameters:
         -----------
         x: tf.placeholder for input data
-        train_feed_dict.update(subnet.get_feed('train', train_valid_split, seed))
-                valid_feed_dict.update(subnet.get_feed('valid', train_valid_split, seed))
-                test_feed_dict.update(subnet.get_feed('test', seed = seed))
+
         Returns:
         ---------
-        logits: tf.placeholder for output data
+        logits, None: tf.placeholder for output data, the None is needed so that
+        the output signature is the same as for get_tensors in Datanode
 
         """
         if self.logits_name == None:
@@ -300,30 +375,11 @@ class Subnetnode(Node):
                     logits = self.constructor(self, x)
 
             self.logits_name = logits.name
-            self.logits = tf.tensordot(logits,self.prefactor_tensor, axes = [[1],[0]])
 
+            # self.logits = logits * tf.tile(self.prefactor_tensor,
+            #                                 tf.shape(self.logits)[0])
+            self.logits = logits*self.prefactor
         return self.logits, None
 
-    def connect_backwards(self):
-        """ Builds the neural net tensors recursively by starting at the
-        target Datanode and working its way back through all nodes.
-        This has to be done recursively as the input of Subnetnode (x in
-        get_tensors(x)) is determined by the output of all the Nodes it is
-        connected to
-        """
-
-        input_tensors = []
-
-        #Automatically determine size of input tensor for this subnet
-        n_features = 0
-
-        for rf in self.receives_from:
-            if debug: print('Connecting {} to {}'.format(self.name, rf.name))
-            input_tensors.append(rf.get_tensors(rf.connect_backwards())[0])
-            n_features += rf.get_n_output()
-
-        self.features = n_features
-        if len(input_tensors) > 1:
-            return tf.concat(input_tensors, axis = 1)
-        else:
-            return input_tensors[0]
+    def get_n_output(self):
+        return self.targets

@@ -30,7 +30,6 @@ def fc_nn(network, x):
     W = []
     b = []
     hidden = []
-
     W.append(tf.get_variable(initializer = tf.truncated_normal_initializer(),shape = [features,layers[0]],name='W1'))
     b.append(tf.get_variable(initializer = tf.constant_initializer(0),shape = [layers[0]],name='b1'))
     hidden.append(activations[0](tf.matmul(x,W[0])+b[0])/features*10)

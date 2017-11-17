@@ -277,7 +277,7 @@ class Graph():
             loss = 0
             with tf.variable_scope("", reuse = True):
                 for n in self.nodes:
-                    if isinstance(n, Datanode): continue
+                    if not isinstance(n, Subnetnode): continue
 
                     for l, layer in enumerate(n.layers):
                         name = n.name
