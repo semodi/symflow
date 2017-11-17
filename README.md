@@ -1,5 +1,5 @@
 # symflow
-TensorFlow API that uses a bottom up approach and graph modeling to build complex ANNs
+TensorFlow framework that uses a bottom up approach and graph modeling to build complex ANNs
 
 ## Introduction 
 
