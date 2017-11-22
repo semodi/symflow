@@ -166,7 +166,7 @@ class Graph():
         return logits_list
 
     def cost_function(self, y1, y2):
-        return tf.reduce_mean(tf.reduce_mean(tf.square(y1-y2),0))
+        return tf.reduce_mean(tf.square(y1-y2), axis = 0)
 
     def get_cost(self, logits_list):
         """ Returns a list of all the cost tensors, given a list of logits_list
@@ -217,7 +217,8 @@ class Graph():
               b_=0,
               verbose=True,
               optimizer=None,
-              log_training = False):
+              log_training = False,
+              batch_size = 0):
 
         """ Train the master neural network
 
@@ -228,7 +229,7 @@ class Graph():
         b: float; regularization parameter
         verbose: boolean; print cost for intermediate training epochs
         optimizer: {tf.nn.GradientDescentOptimizer,tf.nn.AdamOptimizer, ...}
-
+        batch_size: int; size of batches, if 0 use entire training set (default:0)
         Returns:
         --------
         statistics: dict; training statistics
@@ -312,8 +313,8 @@ class Graph():
 
             self.initialized = True
 
-            # train_writer = tf.summary.FileWriter('./          adaptive_rate=Falselog/',
-            #                           self.graph)
+            train_writer = tf.summary.FileWriter('./log/',
+                                      self.graph)
 
             old_cost = 1e8
 
@@ -327,7 +328,14 @@ class Graph():
 
             for _ in range(0,max_steps):
 
-                sess.run(train_step,feed_dict=train_feed_dict)
+                if batch_size > 0:
+                    start = 0
+                    while(start != -1):
+                        batch_feed_dict, start = ml.get_batch_feed(train_feed_dict,
+                                                            start, batch_size)
+                        sess.run(train_step, feed_dict = batch_feed_dict)
+                else:
+                    sess.run(train_step, feed_dict=train_feed_dict)
 
                 # if _%int(max_steps/100) == 0 and adaptive_rate == True:
                 #     new_cost = sess.run(tf.sqrt(cost),

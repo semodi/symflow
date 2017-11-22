@@ -12,11 +12,11 @@ class _Node():
     """ Parent class, should not be instantiated
     """
 
-    def __init__(self):
+    def __init__(self, name = 'default'):
         self.sends_to = []
         self.receives_from = []
         self.tensor_name = None
-        self.name = 'default'
+        self.name = name
 
     def __rshift__(self, other):
         """ Send to other """
@@ -116,6 +116,7 @@ class _Node():
         self.features = n_features
         if len(input_tensors) > 1:
             return tf.concat(input_tensors, axis = 1)
+            if debug: print('(Receives from multiple tensors)')
         else:
             return input_tensors[0]
 

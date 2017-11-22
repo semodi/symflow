@@ -125,10 +125,20 @@ def initialize_uninitialized(sess):
 def get_batch_feed(feed_dict, start, batch_size):
 
     batch_feed_dict = {}
+    reached_end = False
     for key in feed_dict:
+        if 'b' in key:
+            batch_feed_dict[key] = feed_dict[key]
+            continue
+        if start + batch_size >= len(feed_dict[key]):
+            batch_size = len(feed_dict[key]) - start
+            reached_end = True
         if feed_dict[key].ndim == 2:
-            batch_feed_dict[key] = feed_dict[key][start:batch_size]
-        else:
-            batch_feed_dict[key] = feed_dict[key][:, start:batch_size, :]
 
-    return batch_feed_dict
+            batch_feed_dict[key] = feed_dict[key][start: start + batch_size]
+        else:
+            batch_feed_dict[key] = feed_dict[key][:, start:start + batch_size, :]
+
+    if reached_end: start = -1 - batch_size
+
+    return batch_feed_dict, start + batch_size
